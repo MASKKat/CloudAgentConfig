@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.Win32;
+using System.Data.SQLite;
 namespace CloudAgentConfig
 {
     public partial class Form1 : Form
@@ -181,14 +182,50 @@ namespace CloudAgentConfig
             #endregion
             #region 服务程序注册表操作
             string ip = textBox1.Text + "." + textBox2.Text + "." + textBox3.Text + "." + textBox4.Text;
-            string interval = Convert.ToString(Convert.ToInt32(textBox5.Text), 2);
-            string timeout = Convert.ToString(Convert.ToInt32(textBox6.Text), 2);
-            RegistryKey key = Registry.LocalMachine;
-            RegistryKey software = key.CreateSubKey("SYSTEM\\CurrentControlSet\\Services\\CloudAgent");
-            RegistryKey subkey = key.OpenSubKey("SYSTEM\\CurrentControlSet\\Services\\CloudAgent",true);
-            subkey.SetValue("COSServerIP", ip);
-            subkey.SetValue("InterVal", interval, RegistryValueKind.DWord);
-            subkey.SetValue("TimeOut", timeout, RegistryValueKind.DWord);
+            int interval = Convert.ToInt32(textBox5.Text);
+            int timeout = Convert.ToInt32(textBox6.Text);
+            using (SQLiteConnection conn = new SQLiteConnection(@"data source=.\CloudAgent.db"))
+            {
+                using (SQLiteCommand cmd = new SQLiteCommand())
+                {
+                    cmd.Connection = conn;
+                    conn.Open();                   
+                    SQLiteHelper sh = new SQLiteHelper(cmd);
+                    SQLiteTable tb = new SQLiteTable("server");
+                    tb.Columns.Add(new SQLiteColumn("id", true));
+                    tb.Columns.Add(new SQLiteColumn("ip", ColType.Text));
+                    sh.CreateTable(tb);
+                    SQLiteTable tb2 = new SQLiteTable("setting");
+                    tb2.Columns.Add(new SQLiteColumn("id", true));
+                    tb2.Columns.Add(new SQLiteColumn("hostset", ColType.Integer));
+                    tb2.Columns.Add(new SQLiteColumn("interval", ColType.Decimal, false, false,false, "0.0"));
+                    tb2.Columns.Add(new SQLiteColumn("timeout", ColType.Decimal, false, false, false, "0.0"));
+                    sh.CreateTable(tb2);
+                    sh.BeginTransaction();
+                    try
+                    {
+                        var dic = new Dictionary<string, object>();                        
+                        dic["ip"] = ip;
+                        sh.Insert("server", dic);
+                        var dicData = new Dictionary<string, object>();
+                        dicData["interval"] = interval;
+                        dicData["timeout"] = timeout;
+                        DataTable dt = sh.Select("select * from setting order by id; ");
+                        if(dt.Rows.Count>0)   
+                        sh.Update("setting", dicData, "id", 1);
+                        else
+                        sh.Insert("setting", dicData);
+                        sh.Commit();
+                    }
+                    catch
+                    {
+                        sh.Rollback();
+                    }
+
+
+                    conn.Close();
+                }
+            }
             Environment.Exit(1);
             #endregion
         }

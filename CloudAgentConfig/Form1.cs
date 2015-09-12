@@ -9,6 +9,9 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.Win32;
 using System.Data.SQLite;
+using System.Threading;
+using System.Diagnostics;
+
 namespace CloudAgentConfig
 {
     public partial class Form1 : Form
@@ -180,7 +183,7 @@ namespace CloudAgentConfig
 
 
             #endregion
-            #region 服务程序注册表操作
+            #region 服务程序数据库操作
             string ip = textBox1.Text + "." + textBox2.Text + "." + textBox3.Text + "." + textBox4.Text;
             int interval = Convert.ToInt32(textBox5.Text);
             int timeout = Convert.ToInt32(textBox6.Text);
@@ -197,9 +200,9 @@ namespace CloudAgentConfig
                     sh.CreateTable(tb);
                     SQLiteTable tb2 = new SQLiteTable("setting");
                     tb2.Columns.Add(new SQLiteColumn("id", true));
-                    tb2.Columns.Add(new SQLiteColumn("hostset", ColType.Integer));
-                    tb2.Columns.Add(new SQLiteColumn("interval", ColType.Decimal, false, false,false, "0.0"));
-                    tb2.Columns.Add(new SQLiteColumn("timeout", ColType.Decimal, false, false, false, "0.0"));
+                    tb2.Columns.Add(new SQLiteColumn("key", ColType.Text));
+                    tb2.Columns.Add(new SQLiteColumn("value", ColType.Integer));
+                  
                     sh.CreateTable(tb2);
                     sh.BeginTransaction();
                     try
@@ -208,13 +211,27 @@ namespace CloudAgentConfig
                         dic["ip"] = ip;
                         sh.Insert("server", dic);
                         var dicData = new Dictionary<string, object>();
-                        dicData["interval"] = interval;
-                        dicData["timeout"] = timeout;
-                        DataTable dt = sh.Select("select * from setting order by id; ");
+                        var dicData2 = new Dictionary<string, object>();
+                        var dicData3 = new Dictionary<string, object>();
+                        dicData["key"] = "interval";
+                        dicData["value"] = interval;
+                        dicData2["key"] = "timeout";
+                        dicData2["value"] = timeout;
+                        dicData3["key"] = "hostset";
+                        dicData3["value"] = "";
+                        DataTable dt = sh.Select("select * from setting where key='interval';");
                         if(dt.Rows.Count>0)   
-                        sh.Update("setting", dicData, "id", 1);
+                        sh.Update("setting", dicData, "key", "interval");
                         else
                         sh.Insert("setting", dicData);
+                        DataTable dt2 = sh.Select("select * from setting where key='timeout';");
+                        if (dt2.Rows.Count > 0)
+                            sh.Update("setting", dicData2, "key", "timeout");
+                        else
+                            sh.Insert("setting", dicData2);
+                        DataTable dt3 = sh.Select("select * from setting where key='hostset';");
+                        if (dt3.Rows.Count == 0)
+                            sh.Insert("setting", dicData3);                    
                         sh.Commit();
                     }
                     catch
@@ -226,13 +243,169 @@ namespace CloudAgentConfig
                     conn.Close();
                 }
             }
-            Environment.Exit(1);
+
             #endregion
+            #region 是否打开服务
+           
+            if (radioButton1.Checked) {
+               
+                Thread ce = new Thread(delegate ()
+                {
+                    Process p = new Process();
+                    string path = System.Environment.CurrentDirectory;
+                    p.StartInfo.UseShellExecute = false;
+                    p.StartInfo.FileName = path + @"\CloudAgent.exe";
+                    //MessageBox.Show(p.StartInfo.FileName);
+                    p.StartInfo.CreateNoWindow = true;
+                    p.StartInfo.RedirectStandardOutput = true;
+                    p.EnableRaisingEvents = true;        
+                    p.StartInfo.Arguments = "-install";
+                    try
+                    {
+                       // MessageBox.Show(radioButton1.Checked.ToString());
+                        p.Start();
+                        
+                        p.WaitForExit();
+                    }
+                    catch (System.ComponentModel.Win32Exception err)
+                    {
+                        MessageBox.Show("系统找不到指定的程序文件。\r{2}");
+                        p.Close();
+                        return;
+                    }
+
+                    p.Close();
+                });
+                ce.IsBackground = false;
+                ce.Start();
+                Thread ce2 = new Thread(delegate ()
+                {
+                    Process p = new Process();
+                    string path = System.Environment.CurrentDirectory;
+                    p.StartInfo.UseShellExecute = false;
+                    p.StartInfo.FileName = path + @"\AutoOnOffLine.exe";
+                    //MessageBox.Show(p.StartInfo.FileName);
+                    p.StartInfo.CreateNoWindow = true;
+                    p.StartInfo.RedirectStandardOutput = true;
+                    p.EnableRaisingEvents = true;
+                    p.StartInfo.Arguments = "-install";
+                    try
+                    {
+                        // MessageBox.Show(radioButton1.Checked.ToString());
+                        p.Start();
+
+                        p.WaitForExit();
+                    }
+                    catch (System.ComponentModel.Win32Exception err)
+                    {
+                        MessageBox.Show("系统找不到指定的程序文件。\r{2}");
+                        p.Close();
+                        return;
+                    }
+
+                    p.Close();
+                });
+                ce2.IsBackground = false;
+                ce2.Start();
+
+            }
+            if (radioButton2.Checked)
+            {
+                Thread ce = new Thread(delegate ()
+                {
+                    Process p = new Process();
+                    string path = System.Environment.CurrentDirectory;
+                    p.StartInfo.UseShellExecute = false;
+                    p.StartInfo.FileName = path+@"\CloudAgent.exe";
+                    p.StartInfo.CreateNoWindow = true;
+                    p.StartInfo.RedirectStandardOutput = true;
+                    p.EnableRaisingEvents = true;
+                    p.StartInfo.Arguments = "-remove";
+                    try
+                    {
+                        p.Start();
+                        p.WaitForExit();
+                    }
+                    catch (System.ComponentModel.Win32Exception err)
+                    {
+                        MessageBox.Show("系统找不到指定的程序文件。\r{2}");
+                        p.Close();
+                        return;
+                    }
+
+                    p.Close();
+                });
+                ce.IsBackground = false;
+                ce.Start();
+                Thread ce2 = new Thread(delegate ()
+                {
+                    Process p = new Process();
+                    string path = System.Environment.CurrentDirectory;
+                    p.StartInfo.UseShellExecute = false;
+                    p.StartInfo.FileName = path + @"\AutoOnOffLine.exe";
+                    p.StartInfo.CreateNoWindow = true;
+                    p.StartInfo.RedirectStandardOutput = true;
+                    p.EnableRaisingEvents = true;
+                    p.StartInfo.Arguments = "-remove";
+                    try
+                    {
+                        p.Start();
+                        p.WaitForExit();
+                    }
+                    catch (System.ComponentModel.Win32Exception err)
+                    {
+                        MessageBox.Show("系统找不到指定的程序文件。\r{2}");
+                        p.Close();
+                        return;
+                    }
+
+                    p.Close();
+                });
+                ce2.IsBackground = false;
+                ce2.Start();
+            }
+            #endregion
+           /* Environment.Exit(1);*/
+           Application.Exit();
         }
 
         private void button2_Click(object sender, EventArgs e)
         {
             Environment.Exit(0);
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            using (SQLiteConnection conn = new SQLiteConnection(@"data source=.\CloudAgent.db"))
+            {
+                using (SQLiteCommand cmd = new SQLiteCommand())
+                {
+                    cmd.Connection = conn;
+                    conn.Open();
+                    SQLiteHelper sh = new SQLiteHelper(cmd);
+                    sh.BeginTransaction();
+                    try {
+                        DataTable dt = sh.Select("select * from setting where key='interval';");
+                        if (dt.Rows.Count > 0)
+                        {
+                            textBox5.Text = dt.Rows[0]["value"].ToString();
+
+                        }
+                        DataTable dt2 = sh.Select("select * from setting where key='timeout';");
+                        if (dt2.Rows.Count > 0)
+                        {
+                            textBox6.Text = dt.Rows[0]["value"].ToString();
+                        }
+
+                        sh.Commit();
+                    }
+                    catch
+                    {
+                        sh.Rollback();
+                    }
+                    conn.Close();
+                }
+            }
         }
     }
 }

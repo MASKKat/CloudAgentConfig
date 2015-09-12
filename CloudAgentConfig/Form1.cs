@@ -394,9 +394,23 @@ namespace CloudAgentConfig
                         DataTable dt2 = sh.Select("select * from setting where key='timeout';");
                         if (dt2.Rows.Count > 0)
                         {
-                            textBox6.Text = dt.Rows[0]["value"].ToString();
+                            textBox6.Text = dt2.Rows[0]["value"].ToString();
                         }
-
+                        DataTable dt3 = sh.Select("select * from server ;");
+                        if (dt3.Rows.Count > 0)
+                        {
+                            string cosip = dt3.Rows[0]["ip"].ToString();
+                           
+                            string[] s = cosip.Split(new char[] { '.' });
+                            textBox1.Text = s[0];
+                            textBox2.Text = s[1];
+                            textBox3.Text = s[2];
+                            textBox4.Text = s[3];
+                            for (int i=0;i< dt3.Rows.Count;i++)
+                            {
+                                comboBox1.Items.Add(dt3.Rows[i]["ip"].ToString());
+                            }
+                        }
                         sh.Commit();
                     }
                     catch
@@ -406,6 +420,17 @@ namespace CloudAgentConfig
                     conn.Close();
                 }
             }
+        }
+
+        private void comboBox1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            string cosip = comboBox1.Text;
+            string[] s = cosip.Split(new char[] { '.' });
+            textBox1.Text = s[0];
+            textBox2.Text = s[1];
+            textBox3.Text = s[2];
+            textBox4.Text = s[3];
+           
         }
     }
 }
